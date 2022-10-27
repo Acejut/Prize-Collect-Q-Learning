@@ -8,34 +8,34 @@ import java.util.*;
 public class main 
 {
 	static String fileName = "Capital_Cities.txt";
+	static String begin = "albany,ny";
+	static String end = "trenton,nj";
 	
 	static final int UNVISITED = 0;
 	static final int VISITED = 1;
+	static final int LAST_VISIT = 2;
 	
-	static final int TRIALS = 100000;
+	static final int TRIALS = 500000;
 	static final double alpha = 1;
 	static final double gamma = 0.01;
 	
-	static CityNode[] arrCities = null;
+	//static CityNode[] arrCities = null;
+	static LinkedList<CityNode> arrCities;
 	static Graph sGraph;
 	static double[][] Q;
 	static int[][] R;
 	static int statesCt;
-	static int prizeGoal = 2518;
+	static int prizeGoal = 2000;
 	static int total_prize = 0;
 	static double total_wt = 0;
 	
 	
 	public static void main(String[] args) throws IOException
 	{
-		Graph G = new Graph();
-		
-		arrCities = createCityArr(arrCities);
-	    
 	    long startTime, endTime;
 	    double totalTime;
-	    	
-	    sGraph = createGraph(G, arrCities);
+	    initList();
+	    initGraph();
 	    initStatics();
 	    	
 	    startTime = System.nanoTime();
@@ -46,10 +46,10 @@ public class main
 	    
 	    traverse();
 	    
-	    System.out.printf("Total distance: %6.2fkm\n", total_wt);
-	    System.out.printf("Prize Goal: $%6d\n", prizeGoal);
-	    System.out.printf("Total Prize: $%6d\n", total_prize);
-	    System.out.printf("Prize to distance ratio: $%.7f/km\n", total_prize/total_wt);
+	    System.out.printf("\nTotal distance: %6.2fkm\n", total_wt);
+	    System.out.printf("Prize Goal: $%d\n", prizeGoal);
+	    System.out.printf("Total Prize: $%d\n", total_prize);
+	    System.out.printf("Prize goal to distance ratio: $%.7f/km\n", prizeGoal/total_wt);
 	    	
 	    endTime = System.nanoTime();
 	    totalTime = (double) (endTime - startTime) / 1000000;
@@ -57,27 +57,18 @@ public class main
 	    
 	}
 
-	static CityNode[] createCityArr(CityNode[] arr) 
+	
+	static void initList() 
 	{
-		int i = 0;
 		File towns = new File("src/" + fileName);
+		arrCities = new LinkedList<>();
+		ArrayList<String> nameList = new ArrayList<>();
 		
 		try 
-		{
-			Scanner firstScan = new Scanner(towns);
-			
-			firstScan.nextLine();
-			while (firstScan.hasNextLine())
-			{
-				firstScan.nextLine();
-				i++;
-			}
-			firstScan.close();
-			
-			arr = new CityNode[i+1];
-			i = 0;
-			
+		{	
 			Scanner scan = new Scanner(towns);
+			
+			//scan.nextLine();
 			
 			while (scan.hasNextLine())
 			{
@@ -86,77 +77,73 @@ public class main
 				double lon = scan.nextDouble();
 				int pop = scan.nextInt();
 				
-				arr[i] = new CityNode(name, lat, lon, pop);
-				i++;
+				arrCities.add(new CityNode(name, lat, lon, pop));
+				nameList.add(name.toLowerCase());
 			}
 			scan.close();
-			
-			Scanner userIn = new Scanner(System.in);
-			String startCity = "";
-			boolean found = false;
-			
-			System.out.println("Please enter the name of the starting city:");
-			startCity = userIn.nextLine();
-			
-			for (int j = 0; j < arr.length; j++)
-			{
-				if (startCity.equalsIgnoreCase(arr[j].name))
-				{
-					found = true;
-					CityNode temp1 = arr[j];
-					CityNode temp2 = arr[0];
-					
-					arr[0] = temp1;
-					arr[j] = temp2;
-				}
-			}
-			
-			if (!found)
-			{
-				System.out.println("City not found.");
-				System.exit(0);
-			}
 		}
+		
 		catch (FileNotFoundException p)
+		{System.out.println("FILE NOT FOUND."); System.exit(0);}
+		
+		Scanner userIn = new Scanner(System.in);
+		String startCity, endCity;
+		
+		/*
+		System.out.println("Please enter the name of the starting city:");
+		startCity = userIn.nextLine().toLowerCase();
+		
+		System.out.println("Please enter the name of the ending city:");
+		endCity = userIn.nextLine().toLowerCase();
+		*/
+		
+		startCity = begin;
+		endCity = end;
+		
+		if (nameList.contains(startCity) && nameList.contains(endCity))
 		{
-			System.out.println("FILE NOT FOUND.");
+			int sIndex = nameList.indexOf(startCity);
+			CityNode t1 = new CityNode(arrCities.get(sIndex));
+			arrCities.remove(sIndex);
+			nameList.remove(sIndex);
+			
+			int fIndex = nameList.indexOf(endCity);
+			CityNode t2 = new CityNode(arrCities.get(fIndex));
+			arrCities.remove(fIndex);
+
+			arrCities.add(0, t1);
+			arrCities.add(t2);
+		}
+		
+		else
+		{
+			System.out.println("Cannot find city.");
 			System.exit(0);
 		}
-		
-		return arr;
 	}
 	
-	static Graph createGraph(Graph G, CityNode[] arrCities)
-    {
-		int numNodes = arrCities.length;
+	static void initGraph()
+	{
+		sGraph = new Graph();
+		int size = arrCities.size();
+		sGraph.Init(size);
 		
-		G.Init(numNodes);
-		
-		for (int i = 0; i < numNodes; i++)
+		for(int i = 0; i < size; i++)
 		{
-			G.setMark(i, UNVISITED);
-			G.setName(i, arrCities[i].name);
-			G.setPrize(i, arrCities[i].pop);
+			sGraph.setMark(i, UNVISITED);
+			sGraph.setName(i, arrCities.get(i).name);
+			sGraph.setPrize(i, arrCities.get(i).pop);
+			for(int j = 0 ; j < size; j++)
+				sGraph.setEdge(i, j, CityNode.getDistance(arrCities.get(i), arrCities.get(j)));
 		}
-		
-		for(int i = 0; i < numNodes; i++)
-			for(int j = 0 ; j < numNodes; j++)
-			{
-				double weight = CityNode.getDistance(arrCities[i], arrCities[j]);
-				G.setEdge(i, j, weight);
-			}
-		return G;
-    }
+		sGraph.setMark(sGraph.getLastNode(), LAST_VISIT);
+	}
 	
 	static void initStatics() 
 	{
 		statesCt = sGraph.n();
 		Q = new double[statesCt][statesCt];
 		R = new int[statesCt][statesCt];
-		
-		for (int i = 0; i < statesCt; i++)
-			for (int j = 0; j < statesCt; j++)
-				sGraph.setEdge(j, j, 0);
 		
 		resetR();
 	}
@@ -165,8 +152,7 @@ public class main
 	{
 		for (int i = 0; i < statesCt; i++)
 			for (int j = 0; j < statesCt; j++)
-					R[i][j] = (int) sGraph.weight(i, j)/sGraph.getPrize(j) * -1;
-					//R[i][j] = (int) sGraph.weight(i, j) * -1;
+					R[i][j] = (int) sGraph.weight(i, j)/sGraph.getPrize(j) * -3;
 	}
 	static void learnQ() 
 	{
@@ -175,21 +161,31 @@ public class main
 		
 		for (int i = 0; i < TRIALS; i++)
 		{
-			reset();
+			int mPrizeGoal = reset();
 			int j = 0;
 			ArrayList<Integer> indexPath = new ArrayList<>();
 			while (j < statesCt)
 			{
-				resetR();
-				int[] actionsFromCurrentState = possibleActionsFromState(curState);
-				if (actionsFromCurrentState.length == 0 || total_prize >= prizeGoal)
+				int[] actionsFromCurrentState = possibleActionsFromState(curState, false);
+				if (actionsFromCurrentState.length == 0 || total_prize >= mPrizeGoal)
 				{
+					actionsFromCurrentState = possibleActionsFromState(curState, true);
+					int index = rand.nextInt(actionsFromCurrentState.length);
+					int nextState = actionsFromCurrentState[index];
+					
+					double q = Q[curState][nextState];
+					double maxQ = maxQ(nextState);
+					int r = R[curState][nextState];
+					
+					double value = q + alpha * (r + gamma * maxQ - q);
+					Q[curState][nextState] += (value)/3;
+					
 					indexPath.add(curState);
-					/*
-					double tripWeight = total_prize/(total_wt*j);
-					for (int k = 0; k < j; k++) //statesCt-1
-						Q[indexPath.get(k)][indexPath.get(k+1)] -= tripWeight;
-					*/
+					total_wt += sGraph.weight(curState, nextState);
+					total_prize += sGraph.getPrize(nextState);
+					sGraph.setMark(curState, VISITED);
+					curState = nextState;
+					j++;
 					break;
 				}
 				else
@@ -216,27 +212,41 @@ public class main
 		}
 	}
 
-	static void reset() 
+	static int reset() 
 	{
 		total_wt = 0;
 		total_prize = 0;
+		int moddedPrizeGoal = prizeGoal - sGraph.getPrize(sGraph.getLastNode());
 		for (int i = 0; i < statesCt; i++)
 			sGraph.setMark(i, UNVISITED);
+		sGraph.setMark(sGraph.getLastNode(), LAST_VISIT);
+		
+		return moddedPrizeGoal;
 	}
 
-	static int[] possibleActionsFromState(int curState) 
+	static int[] possibleActionsFromState(int curState, boolean lastVisit) 
 	{
-		ArrayList<Integer> result = new ArrayList<>();
-		for (int i = 0; i < statesCt; i++)
-            if (R[curState][i] != 0 && sGraph.getMark(i) != VISITED)
-                result.add(i);
-
-        return result.stream().mapToInt(i -> i).toArray();
+		if (!lastVisit)
+		{
+			ArrayList<Integer> result = new ArrayList<>();
+			for (int i = 0; i < statesCt; i++)
+	            if (R[curState][i] != 0 && sGraph.getMark(i) == UNVISITED)
+	                result.add(i);
+	
+	        return result.stream().mapToInt(i -> i).toArray();
+		}
+		else
+		{
+			ArrayList<Integer> result = new ArrayList<>();
+			result.add(sGraph.getLastNode());
+			
+			return result.stream().mapToInt(i -> i).toArray();
+		}
 	}
 	
 	static double maxQ(int nextState) 
 	{
-        int[] actionsFromState = possibleActionsFromState(nextState);
+        int[] actionsFromState = possibleActionsFromState(nextState, false);
         //the learning rate and eagerness will keep the W value above the lowest reward
         double maxValue = -10;
         for (int nextAction : actionsFromState) 
@@ -305,15 +315,25 @@ public class main
 		
 		while (x < sGraph.n())
 		{
-			if ((sGraph.getMark(index) == UNVISITED) && (total_prize < prizeGoal))
+			if (total_prize < (prizeGoal - sGraph.getPrize(sGraph.getLastNode()))  && sGraph.getMark(index) == UNVISITED)
 			{
 				System.out.printf("Going from %-18s to %-18s was %-5.2fkm collecting $%-5d with a ratio of $%.7f/km\n", sGraph.getName(v), sGraph.getName(index), sGraph.weight(v, index), sGraph.getPrize(index), sGraph.getPrize(index)/sGraph.weight(v, index));
 				total_wt += sGraph.weight(v, index);
 				total_prize += sGraph.getPrize(index);
 				DFSGreed_P(index);
 			}
+			else if (x == sGraph.getLastNode() && sGraph.getMark(sGraph.getLastNode()) == LAST_VISIT)
+			{
+				sGraph.setMark(sGraph.getLastNode(), VISITED);
+				System.out.printf("Going from %-18s to %-18s was %-5.2fkm collecting $%-5d with a ratio of $%.7f/km\n", sGraph.getName(v), sGraph.getName(x), sGraph.weight(v, x), sGraph.getPrize(x), sGraph.getPrize(x)/sGraph.weight(v, x));
+				total_wt += sGraph.weight(v, x);
+				total_prize += sGraph.getPrize(x);
+				break;
+			}
+			/*
 			else
 				break;
+			*/
 			
 			x = sGraph.next(v, x);
 		}
@@ -324,7 +344,7 @@ public class main
 		int runningHigh = Integer.MIN_VALUE;
 		int index = 0;
 		for (int i = 0; i < Q[v].length; i++)
-			if (Q[v][i] > runningHigh && sGraph.getMark(i) == 0)
+			if (Q[v][i] > runningHigh && sGraph.getMark(i) == UNVISITED && Q[v][i] != 0)
 			{
 				runningHigh = (int) Q[v][i];
 				index = i;
