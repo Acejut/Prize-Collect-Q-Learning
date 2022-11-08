@@ -3,7 +3,7 @@ import java.util.*;
 
 //Justin Ruiz
 
-/* TODO: Confirm the algorithm is functioning as expected */
+/* TODO: Confirm memory issue when agent number is too high */
 
 public class main 
 {
@@ -15,8 +15,8 @@ public class main
 	static final int VISITED = 1;
 	static final int LAST_VISIT = 2;
 	
-	static final int TRIALS = 500_000;
-	static final int NUM_AGENTS = 1;
+	static final int TRIALS = 100000;
+	static final int NUM_AGENTS = 4;
 	static final double alpha = 1;
 	static final double gamma = 0.01;
 	
@@ -26,7 +26,7 @@ public class main
 	static double[][] Q;
 	static int[][] R;
 	static int statesCt;
-	static int prizeGoal = 1500;
+	static int prizeGoal = 1000;
 	static int total_prize = 0;
 	static double total_wt = 0;
 	
@@ -164,68 +164,95 @@ public class main
 	{
 		for (int i = 0; i < statesCt; i++)
 			for (int j = 0; j < statesCt; j++)
-					R[i][j] = (int) (sGraph.weight(i, j)/sGraph.getPrize(j) * -3);
+					R[i][j] = (int) (sGraph.weight(i, j)/sGraph.getPrize(j) * -1);
 	}
 	static void learnQ() 
 	{
 		Random rand = new Random();
-		int curState = 0; //rand.nextInt(statesCt);
+		//int curState = 0; //rand.nextInt(statesCt);
 		
 		for (int i = 0; i < TRIALS; i++)
 		{
+			ArrayList<Agent> aList = new ArrayList<Agent>();
+			
 			for (int k = 0; k < NUM_AGENTS; k++)
 			{
 				int mPrizeGoal = reset();
 				int j = 0;
-				ArrayList<Integer> indexPath = new ArrayList<>();
+				
+				Agent a = new Agent(statesCt);
+				aList.add(a);
 				while (j < statesCt)
 				{
-					int[] actionsFromCurrentState = possibleActionsFromState(curState, false);
-					if (actionsFromCurrentState.length == 0 || total_prize >= mPrizeGoal)
+					a.actionsFromCurrentState = possibleActionsFromState(a.curState, false);
+					if (a.actionsFromCurrentState.length == 0 || a.total_prize >= mPrizeGoal)
 					{
-						actionsFromCurrentState = possibleActionsFromState(curState, true);
-						int index = rand.nextInt(actionsFromCurrentState.length);
-						int nextState = actionsFromCurrentState[index];
+						a.actionsFromCurrentState = possibleActionsFromState(a.curState, true);
+						a.index = rand.nextInt(a.actionsFromCurrentState.length);
+						a.nextState = a.actionsFromCurrentState[a.index];
 						
-						double q = Q[curState][nextState];
-						double maxQ = maxQ(nextState);
-						int r = R[curState][nextState];
+						a.q = a.Q[a.curState][a.nextState];
+						a.maxQ = maxQ(a.nextState);
+						a.r = R[a.curState][a.nextState];
 						
-						double value = q + alpha * (r + gamma * maxQ - q);
-						Q[curState][nextState] += (value)/10;
+						a.value = a.q + alpha * (a.r + gamma * a.maxQ - a.q);
+						a.Q[a.curState][a.nextState] += (a.value)/10;
 						
-						indexPath.add(curState);
-						total_wt += sGraph.weight(curState, nextState);
-						total_prize += sGraph.getPrize(nextState);
-						sGraph.setMark(curState, VISITED);
-						curState = nextState;
+						a.indexPath.add(a.curState);
+						a.indexPath.add(a.nextState);
+						a.total_wt += sGraph.weight(a.curState, a.nextState);
+						a.total_prize += sGraph.getPrize(a.nextState);
+						sGraph.setMark(a.curState, VISITED);
+						a.curState = a.nextState;
+						a.calcRatio(prizeGoal);
 						j++;
 						break;
 					}
 					else
 					{
-						int index = rand.nextInt(actionsFromCurrentState.length);
-						int nextState = actionsFromCurrentState[index];
+						a.index = rand.nextInt(a.actionsFromCurrentState.length);
+						a.nextState = a.actionsFromCurrentState[a.index];
 						
-						double q = Q[curState][nextState];
-						double maxQ = maxQ(nextState);
-						int r = R[curState][nextState];
+						a.q = a.Q[a.curState][a.nextState];
+						a.maxQ = maxQ(a.nextState);
+						a.r = R[a.curState][a.nextState];
 						
-						double value = q + alpha * (r + gamma * maxQ - q);
-						Q[curState][nextState] += value;
+						a.value = a.q + alpha * (a.r + gamma * a.maxQ - a.q);
+						a.Q[a.curState][a.nextState] += a.value;
 						
-						indexPath.add(curState);
-						total_wt += sGraph.weight(curState, nextState);
-						total_prize += sGraph.getPrize(nextState);
-						sGraph.setMark(curState, VISITED);
-						curState = nextState;
+						a.indexPath.add(a.curState);
+						a.total_wt += sGraph.weight(a.curState, a.nextState);
+						a.total_prize += sGraph.getPrize(a.nextState);
+						sGraph.setMark(a.curState, VISITED);
+						a.curState = a.nextState;
 						j++;
 					}
 				}
 			}
+			int mostFitIndex = findBestRatio(aList);
+			Agent mostFit = aList.get(mostFitIndex);
+			ArrayList<Integer> iPath = aList.get(mostFitIndex).indexPath;
+			int fitSize = iPath.size();
+			for (int l = 0; l < fitSize-1; l++)
+				Q[iPath.get(l)][iPath.get(l+1)] += mostFit.Q[iPath.get(l)][iPath.get(l+1)];
 		}
 	}
 
+	static int findBestRatio(ArrayList<Agent> aList)
+	{
+		double runningHigh = 0;
+		int index = 0;
+		for (int i = 0; i < aList.size(); i++)
+		{
+			if (aList.get(i).ratio > runningHigh)
+			{
+				runningHigh = aList.get(i).ratio;
+				index = i;
+			}
+		}
+		return index;
+	}
+	
 	static int reset() 
 	{
 		total_wt = 0;
@@ -238,6 +265,7 @@ public class main
 		return moddedPrizeGoal;
 	}
 
+	//something is wrong here
 	static int[] possibleActionsFromState(int curState, boolean lastVisit) 
 	{
 		if (!lastVisit)
