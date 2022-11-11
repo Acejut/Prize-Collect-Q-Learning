@@ -14,14 +14,14 @@ public class main
 	static String fileName = "Capital_Cities.txt";
 	static String begin = "albany,ny";
 	static String end = "albany,ny";
-	static int prizeGoal = 1000;
+	static int prizeGoal = 2000;
 	
 	//static variables to be tweaked by user
-	static final int TRIALS = 1;
-	static final int NUM_AGENTS = 10000;
+	static final int TRIALS = 10000;
+	static final int NUM_AGENTS = 10;
 	static final int W = 10; //constant value to update the reward table
-	static final double alpha = 1; //learning rate
-	static final double gamma = 0.01; //discount factor
+	static final double alpha = 0.1; //learning rate
+	static final double gamma = 0.3; //discount factor
 	
 	//flags for graph (do not touch)
 	static final int UNVISITED = 0;
@@ -195,7 +195,10 @@ public class main
 		
 		for (int i = 0; i < statesCt; i++)
 			for (int j = 0; j < statesCt; j++)
+			{
 					R[i][j] = (int) (sGraph.weight(i, j)/sGraph.getPrize(j) * -1);
+					//Q[i][j] = sGraph.getPrize(i) + sGraph.getPrize(j);
+			}
 	}
 	
 	/*
@@ -260,7 +263,8 @@ public class main
 						
 						
 						double value = q + alpha * (r + gamma * maxQ - q);
-						Q[aj.curState][aj.nextState] += value;
+						//double value = (1-alpha) * q + alpha * gamma * maxQ;
+						Q[aj.curState][aj.nextState] += value/1000;
 						
 						aj.indexPath.add(aj.curState);
 						aj.total_wt += aj.weight(aj.curState, aj.nextState);
@@ -282,7 +286,8 @@ public class main
 				int r = R[aj.curState][aj.getLastNode()];
 				
 				double value = q + alpha * (r + gamma * maxQ - q);
-				Q[aj.curState][aj.getLastNode()] += value;
+				//double value = (1-alpha) * q + alpha * gamma * maxQ;
+				Q[aj.curState][aj.getLastNode()] += value/1000;
 				
 				aj.indexPath.add(aj.getLastNode());
 				aj.total_wt += aj.weight(aj.curState, aj.getLastNode());
@@ -300,7 +305,17 @@ public class main
 			ArrayList<Integer> path = jStar.indexPath;
 			
 			for (int v = 0; v < path.size()-1; v++)
+			{
+				double q = Q[path.get(v)][path.get(v+1)];
+				double maxQ = maxQ(jStar, path.get(v+1));
+				double r = R[path.get(v)][path.get(v+1)];
+				
 				R[path.get(v)][path.get(v+1)] += (W/jStar.total_wt);
+				
+				//double value = q + alpha * (r + gamma * maxQ - q);
+				double value = (1-alpha) * q + alpha * (r + gamma * maxQ);
+				Q[path.get(v)][path.get(v+1)] += value/100;
+			}
 		}
 	}
 
@@ -453,12 +468,12 @@ public class main
 	 */
 	private static int getHighestQ(int v) 
 	{
-		int runningHigh = Integer.MIN_VALUE;
+		double runningHigh = Double.MAX_VALUE * -1;
 		int index = 0;
 		for (int i = 0; i < Q[v].length; i++)
 			if (Q[v][i] > runningHigh && sGraph.getMark(i) == UNVISITED && Q[v][i] != 0)
 			{
-				runningHigh = (int) Q[v][i];
+				runningHigh = Q[v][i];
 				index = i;
 			}
 		

@@ -29,9 +29,9 @@ class Agent
 		indexPath = new ArrayList<Integer>();
 	}
 	
-	public void calcRatio()
+	public double calcRatio()
 	{
-		ratio = prizeGoal/total_wt;
+		return (ratio = prizeGoal/total_wt);
 	}
 	
 	public void setAgentMark(int v, int val)
