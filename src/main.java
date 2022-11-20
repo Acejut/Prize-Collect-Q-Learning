@@ -10,15 +10,16 @@ import java.util.*;
 
 public class main 
 {
-	//meta variables
+	//meta variable
 	static String fileName = "Capital_Cities.txt";
+	
+	//CHANGE CITY AND PRIZEGOAL
 	static String begin = "albany,ny";
-	static String end = "albany,ny";
 	static int prizeGoal = 2000;
 	
 	//static variables to be tweaked by user
 	static final int TRIALS = 10000;
-	static final int NUM_AGENTS = 10;
+	static final int NUM_AGENTS = 1;
 	static final int W = 10; //constant value to update the reward table
 	static final double alpha = 0.1; //learning rate
 	static final double gamma = 0.3; //discount factor
@@ -48,28 +49,47 @@ public class main
 	    initList();
 	    initGraph();
 	    initStatics();
+	    int choice = 3; //algoSelect();
 	    
-	    //algo timing begins
-	    startTime = System.nanoTime();
-	    
-	    //Q-Learning logic
-	    learnQ();
-	    
-	    //Q-Table printout
-	    printQ();
-	    
-	    //final traversal using completed Q-Table
-	    traverse();
+	    switch (choice)
+	    {
+		    default:
+		    {
+		    	System.out.println("INVALID CHOICE.");
+		    	System.exit(0);
+		    }
+		    case 1:
+		    {
+		    	traverseR();
+		    	break;
+		    }
+		    case 2:
+		    {
+		    	traverseP();
+		    	break;
+		    }
+		    case 3:
+		    {
+		    	//Q-Learning logic
+		    	startTime = System.nanoTime();
+		    	learnQ();
+		    	endTime = System.nanoTime();
+		    	//Q-Table printout
+		    	printQ();
+		    	//final traversal using completed Q-Table
+		    	traverseQ();
+		    	
+		    	totalTime = (double) (endTime - startTime) / 1000000;
+		    	System.out.println("Algorithm took " + totalTime + "ms to process.");
+		    	break;
+		    }
+	    }
 	    
 	    //printouts and timing results
 	    System.out.printf("\nTotal distance: %6.2fkm\n", total_wt);
 	    System.out.printf("Prize Goal: $%d\n", prizeGoal);
 	    System.out.printf("Total Prize: $%d\n", total_prize);
 	    System.out.printf("Prize goal to distance ratio: $%.7f/km\n", prizeGoal/total_wt);
-	    	
-	    endTime = System.nanoTime();
-	    totalTime = (double) (endTime - startTime) / 1000000;
-	    System.out.println("Algorithm took " + totalTime + "ms to process.");
 	    
 	}
 	
@@ -120,8 +140,8 @@ public class main
 		endCity = userIn.nextLine().toLowerCase();
 		*/
 		
-		startCity = begin;
-		endCity = end;
+		startCity = begin.toLowerCase();
+		endCity = begin.toLowerCase();
 		
 		//(4)
 		if (nameList.contains(startCity) && nameList.contains(endCity))
@@ -201,6 +221,17 @@ public class main
 			}
 	}
 	
+	static int algoSelect()
+	{
+		Scanner userIn = new Scanner(System.in);
+		System.out.println("Select algorithm:");
+		System.out.println("1) Greedy-R");
+		System.out.println("2) Greedy-P");
+		System.out.println("3) MARL");
+		
+		return userIn.nextInt();
+	}
+	
 	/*
 	 * Documentation for learnQ()
 	 * learnQ() is the primary function for the program
@@ -219,13 +250,8 @@ public class main
 	 * calculate the prize/distance ratio for each agent, and set pertinent flags.
 	 * 
 	 * (6) mostFitIndex() will find the agent with the highest ratio and set them to jStar.
-	 * Reward table will then be updated
-	 * (NEEDS INSIGHT: a W = 10, and a weight > 10, will result in a value of 0, as per integer division)
-	 * 
-	 * TODO: Implement line 27 of the research paper.
-	 * (NEEDS INSIGHT: Q-Table)
+	 * Reward and Q- table will then be updated
 	 */
-	
 	static void learnQ() 
 	{
 		//(1)
@@ -427,7 +453,75 @@ public class main
 	 * then visits it, and repeats until the prizeGoal is met.
 	 * Includes printouts for debugging
 	 */
-	private static void traverse() 
+	private static void traverseQ() 
+	{
+		reset();
+		DFSGreed_Q(0);
+	}
+	
+	static void DFSGreed_Q(int v) 
+	{
+		sGraph.setMark(v, VISITED);
+		int index = getHighestQ(v);
+		int x = sGraph.first(v);
+		
+		while (x < sGraph.n())
+		{
+			if (total_prize < (prizeGoal - sGraph.getPrize(sGraph.getLastNode()))  && sGraph.getMark(index) == UNVISITED)
+			{
+				System.out.printf("Going from %-18s to %-18s was %-5.2fkm collecting $%-5d with a ratio of $%.7f/km\n", sGraph.getName(v), sGraph.getName(index), sGraph.weight(v, index), sGraph.getPrize(index), sGraph.getPrize(index)/sGraph.weight(v, index));
+				total_wt += sGraph.weight(v, index);
+				total_prize += sGraph.getPrize(index);
+				DFSGreed_Q(index);
+			}
+			else if (x == sGraph.getLastNode() && sGraph.getMark(sGraph.getLastNode()) == LAST_VISIT)
+			{
+				sGraph.setMark(sGraph.getLastNode(), VISITED);
+				System.out.printf("Going from %-18s to %-18s was %-5.2fkm collecting $%-5d with a ratio of $%.7f/km\n", sGraph.getName(v), sGraph.getName(x), sGraph.weight(v, x), sGraph.getPrize(x), sGraph.getPrize(x)/sGraph.weight(v, x));
+				total_wt += sGraph.weight(v, x);
+				total_prize += sGraph.getPrize(x);
+				break;
+			}
+			
+			x = sGraph.next(v, x);
+		}
+	}
+	
+	private static void traverseR() 
+	{
+		reset();
+		DFSGreed_R(0);
+	}
+	
+	static void DFSGreed_R(int v) 
+	{
+		sGraph.setMark(v, VISITED);
+		int index = sGraph.getGreatestRatio(v);
+		int x = sGraph.first(v);
+		
+		while (x < sGraph.n())
+		{
+			if (total_prize < (prizeGoal - sGraph.getPrize(sGraph.getLastNode()))  && sGraph.getMark(index) == UNVISITED)
+			{
+				System.out.printf("Going from %-18s to %-18s was %-5.2fkm collecting $%-5d with a ratio of $%.7f/km\n", sGraph.getName(v), sGraph.getName(index), sGraph.weight(v, index), sGraph.getPrize(index), sGraph.getPrize(index)/sGraph.weight(v, index));
+				total_wt += sGraph.weight(v, index);
+				total_prize += sGraph.getPrize(index);
+				DFSGreed_R(index);
+			}
+			else if (x == sGraph.getLastNode() && sGraph.getMark(sGraph.getLastNode()) == LAST_VISIT)
+			{
+				sGraph.setMark(sGraph.getLastNode(), VISITED);
+				System.out.printf("Going from %-18s to %-18s was %-5.2fkm collecting $%-5d with a ratio of $%.7f/km\n", sGraph.getName(v), sGraph.getName(x), sGraph.weight(v, x), sGraph.getPrize(x), sGraph.getPrize(x)/sGraph.weight(v, x));
+				total_wt += sGraph.weight(v, x);
+				total_prize += sGraph.getPrize(x);
+				break;
+			}
+			
+			x = sGraph.next(v, x);
+		}
+	}
+	
+	private static void traverseP() 
 	{
 		reset();
 		DFSGreed_P(0);
@@ -436,7 +530,7 @@ public class main
 	static void DFSGreed_P(int v) 
 	{
 		sGraph.setMark(v, VISITED);
-		int index = getHighestQ(v);
+		int index = sGraph.getGreatestPrize(v);
 		int x = sGraph.first(v);
 		
 		while (x < sGraph.n())

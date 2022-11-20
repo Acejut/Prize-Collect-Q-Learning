@@ -113,7 +113,7 @@ class Graph {
 	  return index;
   }
   
-  public int getGreatestPrize(int i)
+  public int getGreatestRatio(int i)
   {
 	  double max = 0;
 	  int index = 0;
@@ -122,6 +122,21 @@ class Graph {
 		  if ((getPrize(j)/matrix[i][j] > max) && (matrix[i][j] != 0) && (getMark(j) == 0))
 		  {
 			  max = getPrize(j)/matrix[i][j];
+			  index = j;
+		  }
+	  }
+	  return index;
+  }
+  
+  public int getGreatestPrize(int i)
+  {
+	  int max = 0;
+	  int index = 0;
+	  for (int j = 0; j < Mark.length; j++)
+	  {
+		  if ((getPrize(j) > max) && (matrix[i][j] != 0) && (getMark(j) == 0))
+		  {
+			  max = getPrize(j);
 			  index = j;
 		  }
 	  }
