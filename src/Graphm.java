@@ -16,6 +16,25 @@ class Graph {
   public Graph(int n) {
     Init(n);
   }
+  public Graph(Graph G) //hard copy constructor
+  {
+	  int n = G.n();
+	  
+	  this.Mark = new int[n];
+	  this.matrix = new double[n][n];
+	  this.prize = new int[n];
+	  
+	  for (int i = 0; i < n; i++)
+	  {
+		  this.Mark[i] = G.Mark[i];
+		  this.prize[i] = G.prize[i];
+		  for (int j = 0; j < n; j++)
+			  this.matrix[i][j] = G.matrix[i][j];
+	  }
+	  
+	  int k = G.numEdge;
+	  this.numEdge = k;
+  }
 
   public void Init(int n) {
     Mark = new int[n];
@@ -67,15 +86,15 @@ class Graph {
   }
 
   /** Set/Get the mark value for a vertex */
-  public void setMark(int v, int val) { Mark[v] = val; }
+  public void setMark(int v, int val) { this.Mark[v] = val; }
   public int getMark(int v) { return Mark[v]; }
   
   /** Set/Get the name value for a vertex */
-  public void setName(int v, String val) { nodeName[v] = val; }
+  public void setName(int v, String val) { this.nodeName[v] = val; }
   public String getName(int v) { return nodeName[v]; }
   
   /** Set/Get the prize for a vertex */
-  public void setPrize(int v, int val) { prize[v] = val;}
+  public void setPrize(int v, int val) { this.prize[v] = val;}
   public int getPrize(int v) { return prize[v];}
   
   /** @return the index of the city node whose weight is the least for that city and unvisited*/
@@ -94,7 +113,7 @@ class Graph {
 	  return index;
   }
   
-  public int getGreatestPrize(int i)
+  public int getGreatestRatio(int i)
   {
 	  double max = 0;
 	  int index = 0;
@@ -103,6 +122,21 @@ class Graph {
 		  if ((getPrize(j)/matrix[i][j] > max) && (matrix[i][j] != 0) && (getMark(j) == 0))
 		  {
 			  max = getPrize(j)/matrix[i][j];
+			  index = j;
+		  }
+	  }
+	  return index;
+  }
+  
+  public int getGreatestPrize(int i)
+  {
+	  int max = 0;
+	  int index = 0;
+	  for (int j = 0; j < Mark.length; j++)
+	  {
+		  if ((getPrize(j) > max) && (matrix[i][j] != 0) && (getMark(j) == 0))
+		  {
+			  max = getPrize(j);
 			  index = j;
 		  }
 	  }
